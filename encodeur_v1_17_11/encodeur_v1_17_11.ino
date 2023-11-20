@@ -13,15 +13,19 @@ Encoder knob(3, 2); //encoder connected to pins 2 and 3 (and ground)
 //{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
 //0~9,A,b,C,d,E,F,"-"," ",degree,r,h
 
+#define CLK 7//Pins for TM1637       
+//#define CLK 7//Pins for CLK TM1637a,b,c      
+
 // TM1637 hour minutes
-#define CLK1 9//Pins for TM1637       
 #define DIO1 8
-TM1637 tm1637a(CLK1,DIO1);
+TM1637 tm1637a(CLK,DIO1);
 
 // TM1637 month day
-#define CLK2 10//Pins for TM1637       
-#define DIO2 11
-TM1637 tm1637b(CLK2,DIO2);
+#define DIO2 9
+TM1637 tm1637b(CLK,DIO2);
+
+#define DIO3 10
+TM1637 tm1637c(CLK,DIO3);
 
 // Date and time functions using a DS3231 RTC connected via I2C and Wire lib
 #include <Wire.h>
@@ -53,8 +57,9 @@ void setup()
   tm1637a.set(5); 
   tm1637b.init();
   tm1637b.set(5); 
-
-  
+  tm1637c.init();
+  tm1637c.set(5); 
+ 
   
   //BRIGHT_TYPICAL = 2,BRIGHT_DARKEST = 0,BRIGHTEST = 7;
 
@@ -122,7 +127,14 @@ delay(500);
     tm1637b.display(0,d/10);     // day
     tm1637b.display(1,d%10);
     tm1637b.display(2,mo/10);    // month
-    tm1637b.display(3,mo%10);    // 
+    tm1637b.display(3,mo%10);    //
+
+    
+    tm1637c.display(0,y/1000);     // 2
+    tm1637c.display(1,(y%1000)/100); // 0
+    tm1637c.display(2,((y%1000)%100)/10); // 2
+    tm1637c.display(3,((y%10000)%100)%10);  // 3 
+    
 }// end loop() 
 
 // subroutine to return the length of the button push.
@@ -258,6 +270,41 @@ int setday() {
     }
     setday();
 }
+int setyear() {
+  /*
+    tm1637c.display(0,y/1000);     // 2
+    tm1637c.display(1,(y%1000)/100); // 0
+    tm1637c.display(2,((y%1000)%100)/10); // 2
+    tm1637c.display(3,((y%10000)%100)%10);  // 3 
+   */
+    tm1637c.display(0,16);    // 2 = -
+    tm1637c.display(1,16);    // 0 = -
+    tm1637c.display(2,((setyeartemp%1000)%100)/10); // 2
+    tm1637c.display(3,((setyeartemp%10000)%100)%10);  // 3  
+    pushlength = pushlengthset;
+    pushlength = getpushlength ();
+    if (pushlength != pushlengthset) {
+      return setyeartemp;
+    }
+    knob.write(0);
+    delay (50);
+    knobval=knob.read();
+    if (knobval < -1) {
+      knobval = -1;
+    }
+    if (knobval > 1) {
+      knobval = 1;
+    }
+    setyeartemp=setyeartemp + knobval;
+    if (setyeartemp < 21) {
+      setyeartemp = 30;
+    }
+    if (setyeartemp > 30) {
+      setyeartemp = 21;
+    }
+    setyear();
+}
+
 
 //sets the clock
 void setclock (){
@@ -268,6 +315,8 @@ void setclock (){
    setmonth ();
    delay(500);
    setday();
-   rtc.adjust(DateTime(2023,setmonthtemp,setdaytemp,sethourstemp,setminstemp,0));
+   delay(500);
+   setyear();
+   rtc.adjust(DateTime(setyeartemp,setmonthtemp,setdaytemp,sethourstemp,setminstemp,0));
    delay (500); 
 }
